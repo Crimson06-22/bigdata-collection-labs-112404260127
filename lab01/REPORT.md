@@ -21,17 +21,17 @@
 ### 判断结果
 
 - 页面：`/devices`
-- 数据加载方式：`静态加载 / 动态加载`
+- 数据加载方式：`动态加载`
 - 判断依据：
 
 请用 1～2 句话说明：
 
-1. 在“查看网页源代码”中是否能搜索到页面上的设备名称；
-2. 在 Network 的 Fetch/XHR 中是否找到返回设备数据的请求。
+1. 在“查看网页源代码”中无法搜索到页面上的设备名称；
+2. 在 Network 的 Fetch/XHR 中能找到返回设备数据的请求。
 
 ### API 信息
 
-- Request URL：
+- Request URL：https://115.159.159.82/api/devices?page=1&page_size=50
 - Request Method：
 - Query 参数：
 
