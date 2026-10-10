@@ -5,8 +5,8 @@
 - **姓名：陈俊宏**
 - **学号：112404260127**
 - **班级：数据1241**
-- **GitHub 用户名：**
-- **仓库地址：**
+- **GitHub 用户名：Crimson06-22**
+- **仓库地址：https://github.com/Crimson06-22/bigdata-collection-labs-112404260127**
 
 > 文件位置：`lab01/REPORT.md`  
 > 完整代码保存在 `lab1_html_api.ipynb`。  
