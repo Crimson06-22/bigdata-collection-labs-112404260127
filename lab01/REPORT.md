@@ -32,8 +32,9 @@
 ### API 信息
 
 - Request URL：https://115.159.159.82/api/devices?page=1&page_size=50
-- Request Method：
-- Query 参数：
+- Request Method：GET
+- Query 参数：page: 1,page_size: 50
+
 
 ### 【截图 1】Device API 发现证据
 
