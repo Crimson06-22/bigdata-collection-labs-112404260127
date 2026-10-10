@@ -57,7 +57,7 @@ images/01_device_api.png
 插入：
 
 ```markdown
-![Device API 发现证据](lab01/images/01_device_api.png)
+![Device API 发现证据](./images/01_device_api.png)
 ```
 
 ---
@@ -89,7 +89,7 @@ images/02_company_source.png
 插入：
 
 ```markdown
-![Company 静态加载证据](images/02_company_source.png)
+![Company 静态加载证据](./images/02_company_source.png)
 ```
 
 ---
