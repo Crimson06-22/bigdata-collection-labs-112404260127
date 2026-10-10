@@ -57,7 +57,7 @@ images/01_device_api.png
 插入：
 
 ```markdown
-![Device API 发现证据](./images/01_device_api.png)
+![Device API 发现证据](lab01/images/01_device_api.png)
 ```
 
 ---
