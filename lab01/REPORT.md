@@ -103,10 +103,10 @@ images/02_company_source.png
 
 | 含义   | JSON 字段 |
 | ---- | ------- |
-| 当前页  |         |
-| 每页条数 |         |
-| 设备总数 |         |
-| 设备列表 |         |
+| 当前页  | `page`  |
+| 每页条数 | `page_size` |
+| 设备总数 | `total` |
+| 设备列表 | `items` |
 
 ---
 
@@ -116,10 +116,10 @@ images/02_company_source.png
 
 ```python
 # 从第一页响应中读取分页信息
-total = data["________________"]
-page_size = data["________________"]
+total = data["total"]
+page_size = data["page_size"]
 
-total_pages = ______________________________________
+total_pages = (total + page_size - 1) // page_size
 
 devices = []
 
@@ -127,32 +127,32 @@ for page in range(1, total_pages + 1):
     r = requests.get(
         api_url,
         params={
-            "________": page,
-            "________": page_size
+            "page": page,
+            "page_size": page_size
         },
         timeout=10
     )
 
     page_data = r.json()
-    page_items = page_data["________________"]
-    ________________________________________________
+    page_items = page_data["items"]
+    devices.extend(page_items)
 ```
 
 ---
 
 ## 2.3 采集结果
 
-- 每页条数：
-- 设备总数：
-- 程序计算得到的总页数：
-- 最终采集设备数：
-- 唯一 `device_id` 数：
+- 每页条数：50
+- 设备总数：5000
+- 程序计算得到的总页数：100
+- 最终采集设备数：5000
+- 唯一 `device_id` 数：5000
 
 回答：
 
 > 为什么总页数应由 API 返回的 `total` 和 `page_size` 计算，而不是直接在代码里写死？
 
-答：
+答：因为数据总量和每页条数都可能变化。写死页数会在数据增减时导致**漏采**（总数变多时）或**重复请求**（总数变少时），代码也会随之失效。用 `(total + page_size - 1) // page_size` 向上取整计算，可以让程序在任意数据量下都自动采全、且不多采一页。
 
 ---
 
@@ -160,8 +160,8 @@ for page in range(1, total_pages + 1):
 
 ## 3.1 企业记录 Selector
 
-- 企业记录 selector：
-- 第 1 页企业记录数：
+- 企业记录 selector：`article.company-card`
+- 第 1 页企业记录数：20
 
 说明为什么选择这个 selector：
 
@@ -169,7 +169,7 @@ for page in range(1, total_pages + 1):
 - 是否参考过浏览器 Copy selector 或 AI？
 - 最终为什么采用现在这个写法？
 
-答：
+答：主要使用了 **class** 和 **data-\*** 属性。每条企业记录的最外层节点就是 `<article class="company-card" data-company-id="C000001">`：`company-card` 是语义明确、专门用于标识企业卡片的 class，对页面其他结构变化不敏感；同时该节点自带 `data-company-id` 属性，可直接读取企业 ID，不必再从子节点文本里截取。我先在 Elements 中观察了 DOM，确认所有记录共享该 class，没有使用浏览器「Copy selector」得到的长路径（那会产生大量 `nth-child(...)` 层级，脆弱且难读）。最终选择 `article.company-card` 这一短且稳定的写法。
 
 ---
 
@@ -178,21 +178,21 @@ for page in range(1, total_pages + 1):
 只填写“记录定位 + 一条记录的关键字段”。
 
 ```python
-cards = soup.select("________________________________")
+cards = soup.select("article.company-card")
 
 card = cards[0]
 
-company_id = ______________________________________
-name = ____________________________________________
-status = __________________________________________
+company_id = card.get("data-company-id")
+name = card.select_one("h2 a").get_text(strip=True)
+status = card.select_one(".badge").get_text(strip=True)
 ```
 
 行业、区域、设备数量使用 `dt/dd` 结构后，请写出你最终如何得到：
 
 ```python
-industry = ________________________________________
-zone = ____________________________________________
-device_count = ____________________________________
+industry = details["所属行业"]
+zone = details["所在区域"]
+device_count = int(details["设备数量"].replace("台", "").strip())
 ```
 
 ---
@@ -201,12 +201,12 @@ device_count = ____________________________________
 
 任选 **2 个字段**说明：
 
-1. 字段：
-   - 来自：`文本 / HTML 属性`
-   - 使用的方法：
-2. 字段：
-   - 来自：`文本 / HTML 属性`
-   - 使用的方法：
+1. 字段：`company_id`
+   - 来自：`HTML 属性`
+   - 使用的方法：`card.get("data-company-id")`，直接读取卡片节点的 `data-*` 属性，不需要解析文本。
+2. 字段：`device_count`
+   - 来自：`文本`
+   - 使用的方法：先在 `dl > div` 中以 `dt` 文本（「设备数量」）为键建立字典，取出对应 `dd` 的文本（形如「6 台」），再用 `.replace("台","").strip()` 去掉单位并转成 `int`。
 
 ---
 
@@ -214,8 +214,8 @@ device_count = ____________________________________
 
 ## 4.1 下一页元素
 
-- “下一页” selector：
-- 第 1 页 `href` 示例：
+- “下一页” selector：`nav.pagination a`，并**按文本内容筛选**出文本为「下一页」的元素
+- 第 1 页 `href` 示例：`/companies?page=2`
 
 ### 【截图 3】Company “下一页”元素
 
@@ -246,13 +246,13 @@ images/03_company_next.png
 ## 4.2 关键代码
 
 ```python
-next_link = soup.select_one("____________________________")
+next_link = soup.select_one("nav.pagination a")
 
-next_href = ________________________________________
+next_href = next_link.get("href")
 
 next_url = urljoin(
     current_url,
-    ________________________________________________
+    next_href
 )
 ```
 
@@ -260,7 +260,7 @@ next_url = urljoin(
 
 > 你的程序如何完成“当前页 → 找下一页 href → 请求下一页 → 再解析”的循环？
 
-答：
+答：程序维护一个「当前页 URL」，每轮先请求该 URL 并用 BeautifulSoup 解析出本页全部企业卡片；然后调用 `find_next_link` 精确定位文本为「下一页」的 `<a>` 元素，用 `urljoin` 把它的相对 `href` 拼成绝对 URL，作为下一轮的当前页 URL。如此循环 3 次即可连续采集 3 页；若某页找不到「下一页」元素则提前结束。
 
 ---
 
@@ -268,12 +268,12 @@ next_url = urljoin(
 
 | 页码     | 企业数 |
 | ------ | --: |
-| 1      |     |
-| 2      |     |
-| 3      |     |
-| **合计** |     |
+| 1      |  20 |
+| 2      |  20 |
+| 3      |  20 |
+| **合计** | **60** |
 
-- 唯一 `company_id` 数：
+- 唯一 `company_id` 数：60
 
 ---
 
@@ -283,11 +283,11 @@ next_url = urljoin(
 
 | 检查项                   | 结果 |
 | --------------------- | -: |
-| Company 总数            |    |
-| 唯一 `company_id`       |    |
-| Device 总数             |    |
-| 唯一 `device_id`        |    |
-| Company–Device 不一致企业数 |    |
+| Company 总数            | 60 |
+| 唯一 `company_id`       | 60 |
+| Device 总数             | 5000 |
+| 唯一 `device_id`        | 5000 |
+| Company–Device 不一致企业数 | 0 |
 
 ### 【截图 4】最终验证结果
 
@@ -333,11 +333,11 @@ device_counts = Counter(
 mismatch_count = 0
 
 for company in companies:
-    cid = __________________________________________
-    expected = _____________________________________
-    actual = _______________________________________
+    cid = company["company_id"]
+    expected = company["device_count"]
+    actual = device_counts.get(cid, 0)
 
-    if _____________________________________________:
+    if expected != actual:
         mismatch_count += 1
 ```
 
@@ -345,7 +345,7 @@ for company in companies:
 
 > 为什么 `status_code == 200` 仍然不能说明“数据已经采集正确”？
 
-答：
+答：`status_code == 200` 只能说明**这一次 HTTP 请求被服务器正常响应**，它不校验返回内容是否完整、是否正确。例如分页参数写错导致只采到第一页、或翻页逻辑有误导致重复采集，请求依然都是 200。要确认数据正确，必须额外做数量校验（总数是否等于 `total`）、唯一性校验（`device_id` / `company_id` 是否重复）以及跨数据源一致性校验（Company 的 `device_count` 与实际 Device 数是否吻合）。
 
 ---
 
@@ -360,8 +360,8 @@ data/devices.json
 
 填写：
 
-- `companies.json`：`已生成 / 未生成`
-- `devices.json`：`已生成 / 未生成`
+- `companies.json`：`已生成`
+- `devices.json`：`已生成`
 
 不需要截图 JSON 全文，也不需要把 JSON 内容复制到报告。
 
@@ -375,4 +375,4 @@ data/devices.json
 2. HTML “下一页”分页和 API `page` 分页有什么不同；
 3. 你使用了哪些方法验证采集结果。
 
-答：
+答：静态加载与动态加载页面的处理方式不同：`/companies` 的数据随初始 HTML 一起返回，可直接用 `requests` + BeautifulSoup 配合 CSS Selector 解析；而 `/devices` 数据由 API 动态加载，必须先通过浏览器 Network 定位接口，再请求 JSON。两者分页方式也不同：HTML 分页依赖页面上的「下一页」链接循环跳转，API 分页则靠 `page` / `page_size` 参数并由 `total` 自动计算总页数。我通过总数与唯一 ID 校验、以及 Company 与 Device 的 `company_id` 数量一致性比对，确认采集结果完整且正确。
